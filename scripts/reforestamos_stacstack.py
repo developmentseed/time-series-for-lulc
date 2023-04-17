@@ -4,9 +4,10 @@ from pathlib import Path
 import geopandas as gpd
 import pystac_client
 import stackstac
+import xarray
 from dask.distributed import Client, LocalCluster
-from rasterio.features import bounds, rasterize
-from rasterio.warp import transform_geom
+from numcodecs import Zstd
+from rasterio.features import rasterize
 
 CLASS_DN_LOOKUP = {
     "agriculture": 1,
@@ -41,13 +42,21 @@ for geojson in glob.glob(f"{wd}/geojson_sentinel/*.geojson"):
     search = catalog.search(
         collections=["sentinel-s2-l2a-cogs"],
         bbox=src.total_bounds,
-        datetime="2021-11-01/2021-11-30",
+        datetime="2021-11-01/2022-04-30",
     )
     items = search.get_all_items()
     print(f"Found {len(items)} items")
 
     # Stack imagery in mexican bounds at 10m resolution.
-    stack = stackstac.stack(items, bounds=src_mx.total_bounds, epsg=epsg, resolution=10)
+    stack = stackstac.stack(
+        items,
+        bounds=src_mx.total_bounds,
+        epsg=epsg,
+        resolution=10,
+        dtype="uint16",
+        fill_value=0,
+    )
+
     # Keep all bands with 10m or 20m resolution.
     data = stack.sel(
         band=[
@@ -64,11 +73,10 @@ for geojson in glob.glob(f"{wd}/geojson_sentinel/*.geojson"):
             "SCL",
         ]
     )
+
     # Fetch data.
     data = data.compute()
-    print(
-        f"Finished fetching {geojson}, writing to {wd}/stacks/{Path(geojson).stem}.nc"
-    )
+
     # Ensure data is writable to zarr
     data.attrs["transform"] = tuple(data.transform)
     del data.attrs["spec"]
@@ -85,6 +93,7 @@ for geojson in glob.glob(f"{wd}/geojson_sentinel/*.geojson"):
         fill=0,
         dtype="uint8",
     )
+
     # Combine y and X array for training later
     combo = xarray.Dataset(
         {
@@ -93,4 +102,8 @@ for geojson in glob.glob(f"{wd}/geojson_sentinel/*.geojson"):
         }
     )
 
-    combo.to_zarr(f"{wd}/stacks/{Path(geojson).stem}.zarr", mode="w")
+    # Save to zarr
+    filepath = f"{wd}/stacks/{Path(geojson).stem}.zarr"
+    print(f"Finished fetching {geojson}, writing to {filepath}")
+    encoding = {dat: {"compressor": Zstd(level=9)} for dat in combo.data_vars}
+    combo.to_zarr(filepath, mode="w", encoding=encoding)
