@@ -1,4 +1,3 @@
-import glob
 from pathlib import Path
 
 import geopandas as gpd
@@ -22,7 +21,7 @@ CLASS_DN_LOOKUP = {
     "without_apparent_vegetation": 10,
 }
 
-wd = "/home/tam/Documents/devseed"
+wd = Path("/home/tam/Documents/devseed")
 
 cluster = LocalCluster()  # Launches a scheduler and workers locally
 client = Client(cluster)
@@ -30,8 +29,13 @@ catalog = pystac_client.Client.open("https://earth-search.aws.element84.com/v0/"
 
 epsg = 6362
 
-for geojson in glob.glob(f"{wd}/geojson_sentinel/*.geojson"):
+for geojson in wd.glob("geojson_sentinel/*.geojson"):
+    filepath = wd / "stacks" / f"{geojson.stem}.zarr"
+
+    if filepath.exists():
+        continue
     print("Working on file", geojson)
+
     src = gpd.read_file(geojson)
 
     # Project geometries into mexican projection https://epsg.io/6362
@@ -103,7 +107,6 @@ for geojson in glob.glob(f"{wd}/geojson_sentinel/*.geojson"):
     )
 
     # Save to zarr
-    filepath = f"{wd}/stacks/{Path(geojson).stem}.zarr"
     print(f"Finished fetching {geojson}, writing to {filepath}")
     encoding = {dat: {"compressor": Zstd(level=9)} for dat in combo.data_vars}
     combo.to_zarr(filepath, mode="w", encoding=encoding)
