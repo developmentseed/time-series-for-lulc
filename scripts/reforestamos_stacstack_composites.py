@@ -1,17 +1,27 @@
 import xarray
-import matplotlib.pyplot as plt
+
+# import matplotlib.pyplot as plt
 from pathlib import Path
+from rasterio.features import rasterize
+import geopandas as gpd
+import numpy
 
 wd = Path("/home/tam/Documents/devseed")
 
-geojson = list(wd.glob("geojson_sentinel/*.geojson"))[45]
+epsg = 6362
 
-filepath = wd / "stacks" / f"{geojson.stem}.zarr"
-
-data = xarray.open_zarr(filepath)
-
-scl = data.sel(band="SCL").astype("uint8")
-
+CLASS_DN_LOOKUP = {
+    "agriculture": 1,
+    "bare_soil": 2,
+    "dry_jungle": 3,
+    "forest": 4,
+    "humid_jungle": 5,
+    "pasture": 6,
+    "scrub": 7,
+    "urban": 8,
+    "water": 9,
+    "without_apparent_vegetation": 10,
+}
 
 # 0 NO_DATA
 # 1 SATURATED_OR_DEFECTIVE
@@ -26,29 +36,88 @@ scl = data.sel(band="SCL").astype("uint8")
 # 10 THIN_CIRRUS
 # 11 SNOW
 CLOUDY_OR_NODATA = (0, 3, 8, 9, 10)
-cloud_mask = scl.isin(CLOUDY_OR_NODATA)
 
-cleaned_data = data.where(cloud_mask)  # mask pixels where any one of those bits are set
+BUFFER_SIZE_METERS = -20
 
-# composites = cleaned_data.resample(time="14D", origin={"start": "2021-11-01", "end": "2022-04-30"}, closed="right").median("time")
-composites = data.resample(
-    time="14D", skipna=True, origin="2021-11-01", closed="right"
-).median("time")
-composites
+total = len(list(wd.glob("geojson_sentinel/*.geojson")))
 
-rgb = (
-    (255 * composites.imagery.sel(band=["B04", "B03", "B02"]) / 3000)
-    .clip(0, 255)
-    .astype("uint8")
-)
+y, X = None, None
+for counter, geojson in enumerate(wd.glob("geojson_sentinel/*.geojson")):
+    print(f"Working on {counter + 1}/{total}")
 
+    filepath = wd / "stacks" / f"{geojson.stem}.zarr"
 
-fig = plt.figure(figsize=(45, 50))
-imgx = 3
-imgy = 5
-for i in range(rgb.shape[0]):
-    ax = fig.add_subplot(imgy, imgx, i + 1)
-    xarray.plot.imshow(rgb[i], ax=ax)
+    if not filepath.exists():
+        continue
 
+    data = xarray.open_zarr(filepath)
 
-plt.show()
+    scl = data.imagery.sel(band="SCL").astype("uint8")
+
+    cloud_mask = scl.isin(CLOUDY_OR_NODATA)
+
+    cleaned_data = data.imagery.where(~cloud_mask)
+
+    # composites = cleaned_data.resample(time="14D", origin={"start": "2021-11-01", "end": "2022-04-30"}, closed="right").median("time")
+    composites = cleaned_data.resample(
+        time="14D", skipna=True, origin="2021-10-30", closed="right"
+    ).median("time")
+
+    # Rasterize the geometry with negative buffer
+    src = gpd.read_file(geojson).to_crs(f"EPSG:{epsg}")
+    rasterized = rasterize(
+        [
+            (dat.geometry.buffer(BUFFER_SIZE_METERS), CLASS_DN_LOOKUP[dat["class"]])
+            for fid, dat in src.iterrows()
+            if dat.geometry
+        ],
+        out_shape=composites.shape[2:],
+        transform=composites.transform,
+        all_touched=True,
+        fill=0,
+        dtype="uint8",
+    )
+
+    cdata = (
+        composites.drop_sel({"band": "SCL"})
+        .transpose("y", "x", "time", "band")
+        .to_numpy()
+    )
+    cdata = cdata.reshape((-1, *cdata.shape[2:]))
+
+    ydata = rasterized.ravel()
+
+    cdata = cdata[ydata != 0]
+    ydata = ydata[ydata != 0]
+
+    if y is None:
+        y = ydata
+    else:
+        y = numpy.hstack((y, ydata))
+
+    if X is None:
+        X = cdata
+    else:
+        X = numpy.vstack((X, cdata))
+    break
+
+    continue
+
+    rgb = (
+        (255 * composites.sel(band=["B04", "B03", "B02"]) / 3000)
+        .clip(0, 255)
+        .astype("uint8")
+    )
+
+    fig = plt.figure(figsize=(45, 50))
+    imgx = 3
+    imgy = 5
+    for i in range(rgb.shape[0]):
+        ax = fig.add_subplot(imgy, imgx, i + 1)
+        xarray.plot.imshow(rgb[i], ax=ax)
+
+    ax = fig.add_subplot(imgy, imgx, i + 2)
+    data["training"] = (("y", "x"), rasterized)
+    xarray.plot.imshow(data.training, ax=ax)
+
+    plt.show()
