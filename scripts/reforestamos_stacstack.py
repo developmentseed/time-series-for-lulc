@@ -21,15 +21,17 @@ CLASS_DN_LOOKUP = {
     "without_apparent_vegetation": 10,
 }
 
-wd = Path("/home/tam/Documents/devseed")
+wd = Path("./data")
 
-cluster = LocalCluster()  # Launches a scheduler and workers locally
-client = Client(cluster)
+# cluster = LocalCluster(
+#     n_workers=1, processes=True, threads_per_worker=1
+# )  # Launches a scheduler and workers locally
+# client = Client(cluster)
 catalog = pystac_client.Client.open("https://earth-search.aws.element84.com/v0/")
 
 epsg = 6362
 
-for geojson in wd.glob("geojson_sentinel/*.geojson"):
+for geojson in wd.glob("geojson/*.geojson"):
     filepath = wd / "stacks" / f"{geojson.stem}.zarr"
 
     if filepath.exists():
@@ -46,7 +48,7 @@ for geojson in wd.glob("geojson_sentinel/*.geojson"):
     search = catalog.search(
         collections=["sentinel-s2-l2a-cogs"],
         bbox=src.total_bounds,
-        datetime="2021-11-01/2022-04-30",
+        datetime="2021-12-01/2022-03-30",
     )
     items = search.get_all_items()
     print(f"Found {len(items)} items")

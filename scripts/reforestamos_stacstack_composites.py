@@ -4,9 +4,9 @@ import xarray
 from pathlib import Path
 from rasterio.features import rasterize
 import geopandas as gpd
-import numpy
+import numpy as np
 
-wd = Path("/home/tam/Documents/devseed")
+wd = Path("./data")
 
 epsg = 6362
 
@@ -39,10 +39,10 @@ CLOUDY_OR_NODATA = (0, 3, 8, 9, 10)
 
 BUFFER_SIZE_METERS = -20
 
-total = len(list(wd.glob("geojson_sentinel/*.geojson")))
+total = len(list(wd.glob("geojson/*.geojson")))
 
 y, X = None, None
-for counter, geojson in enumerate(wd.glob("geojson_sentinel/*.geojson")):
+for counter, geojson in enumerate(wd.glob("geojson/*.geojson")):
     print(f"Working on {counter + 1}/{total}")
 
     filepath = wd / "stacks" / f"{geojson.stem}.zarr"
@@ -90,34 +90,36 @@ for counter, geojson in enumerate(wd.glob("geojson_sentinel/*.geojson")):
     cdata = cdata[ydata != 0]
     ydata = ydata[ydata != 0]
 
-    if y is None:
-        y = ydata
-    else:
-        y = numpy.hstack((y, ydata))
+    np.savez_compressed(wd / "cubes" / f"{geojson.stem}.npz", X=cdata, y=ydata)
 
-    if X is None:
-        X = cdata
-    else:
-        X = numpy.vstack((X, cdata))
-    break
+    # if y is None:
+    #     y = ydata
+    # else:
+    #     y = numpy.hstack((y, ydata))
 
-    continue
+    # if X is None:
+    #     X = cdata
+    # else:
+    #     X = numpy.vstack((X, cdata))
+    # break
 
-    rgb = (
-        (255 * composites.sel(band=["B04", "B03", "B02"]) / 3000)
-        .clip(0, 255)
-        .astype("uint8")
-    )
+    # continue
 
-    fig = plt.figure(figsize=(45, 50))
-    imgx = 3
-    imgy = 5
-    for i in range(rgb.shape[0]):
-        ax = fig.add_subplot(imgy, imgx, i + 1)
-        xarray.plot.imshow(rgb[i], ax=ax)
+    # rgb = (
+    #     (255 * composites.sel(band=["B04", "B03", "B02"]) / 3000)
+    #     .clip(0, 255)
+    #     .astype("uint8")
+    # )
 
-    ax = fig.add_subplot(imgy, imgx, i + 2)
-    data["training"] = (("y", "x"), rasterized)
-    xarray.plot.imshow(data.training, ax=ax)
+    # fig = plt.figure(figsize=(45, 50))
+    # imgx = 3
+    # imgy = 5
+    # for i in range(rgb.shape[0]):
+    #     ax = fig.add_subplot(imgy, imgx, i + 1)
+    #     xarray.plot.imshow(rgb[i], ax=ax)
 
-    plt.show()
+    # ax = fig.add_subplot(imgy, imgx, i + 2)
+    # data["training"] = (("y", "x"), rasterized)
+    # xarray.plot.imshow(data.training, ax=ax)
+
+    # plt.show()
