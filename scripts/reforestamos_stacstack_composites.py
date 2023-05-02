@@ -1,27 +1,17 @@
-import xarray
-
 # import matplotlib.pyplot as plt
 from pathlib import Path
-from rasterio.features import rasterize
+
 import geopandas as gpd
 import numpy as np
+import xarray
+from rasterio.features import rasterize
+from wikidata import S2A_LULC_CLS
+
+CLASS_DN_LOOKUP = {val: key for key, val in S2A_LULC_CLS.items()}
 
 wd = Path("./data")
 
 epsg = 6362
-
-CLASS_DN_LOOKUP = {
-    "agriculture": 1,
-    "bare_soil": 2,
-    "dry_jungle": 3,
-    "forest": 4,
-    "humid_jungle": 5,
-    "pasture": 6,
-    "scrub": 7,
-    "urban": 8,
-    "water": 9,
-    "without_apparent_vegetation": 10,
-}
 
 # 0 NO_DATA
 # 1 SATURATED_OR_DEFECTIVE
@@ -58,10 +48,22 @@ for counter, geojson in enumerate(wd.glob("geojson/*.geojson")):
 
     cleaned_data = data.imagery.where(~cloud_mask)
 
-    # composites = cleaned_data.resample(time="14D", origin={"start": "2021-11-01", "end": "2022-04-30"}, closed="right").median("time")
-    composites = cleaned_data.resample(
+    # Create composites with cloud mask
+    composites_using_cloud_mask = cleaned_data.resample(
         time="14D", skipna=True, origin="2021-10-30", closed="right"
     ).median("time")
+
+    # Create composites without cloud mask
+    composites_using_all_pixels = data.imagery.resample(
+        time="14D", skipna=True, origin="2021-10-30", closed="right"
+    ).median("time")
+
+    # Fill pixels in cloud masked composites with pixels from full composite
+    composites = xarray.where(
+        np.isnan(composites_using_cloud_mask),
+        composites_using_all_pixels,
+        composites_using_cloud_mask,
+    )
 
     # Rasterize the geometry with negative buffer
     src = gpd.read_file(geojson).to_crs(f"EPSG:{epsg}")
@@ -72,7 +74,7 @@ for counter, geojson in enumerate(wd.glob("geojson/*.geojson")):
             if dat.geometry
         ],
         out_shape=composites.shape[2:],
-        transform=composites.transform,
+        transform=cleaned_data.transform,
         all_touched=True,
         fill=0,
         dtype="uint8",
@@ -90,36 +92,28 @@ for counter, geojson in enumerate(wd.glob("geojson/*.geojson")):
     cdata = cdata[ydata != 0]
     ydata = ydata[ydata != 0]
 
+    if np.sum(np.isnan(cdata)):
+        raise ValueError()
+
     np.savez_compressed(wd / "cubes" / f"{geojson.stem}.npz", X=cdata, y=ydata)
 
-    # if y is None:
-    #     y = ydata
-    # else:
-    #     y = numpy.hstack((y, ydata))
+    continue
 
-    # if X is None:
-    #     X = cdata
-    # else:
-    #     X = numpy.vstack((X, cdata))
-    # break
+    rgb = (
+        (255 * composites.sel(band=["B04", "B03", "B02"]) / 3000)
+        .clip(0, 255)
+        .astype("uint8")
+    )
 
-    # continue
+    fig = plt.figure(figsize=(45, 50))
+    imgx = 3
+    imgy = 5
+    for i in range(rgb.shape[0]):
+        ax = fig.add_subplot(imgy, imgx, i + 1)
+        xarray.plot.imshow(rgb[i], ax=ax)
 
-    # rgb = (
-    #     (255 * composites.sel(band=["B04", "B03", "B02"]) / 3000)
-    #     .clip(0, 255)
-    #     .astype("uint8")
-    # )
+    ax = fig.add_subplot(imgy, imgx, i + 2)
+    data["training"] = (("y", "x"), rasterized)
+    xarray.plot.imshow(data.training, ax=ax)
 
-    # fig = plt.figure(figsize=(45, 50))
-    # imgx = 3
-    # imgy = 5
-    # for i in range(rgb.shape[0]):
-    #     ax = fig.add_subplot(imgy, imgx, i + 1)
-    #     xarray.plot.imshow(rgb[i], ax=ax)
-
-    # ax = fig.add_subplot(imgy, imgx, i + 2)
-    # data["training"] = (("y", "x"), rasterized)
-    # xarray.plot.imshow(data.training, ax=ax)
-
-    # plt.show()
+    plt.show()
