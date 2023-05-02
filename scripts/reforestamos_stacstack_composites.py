@@ -95,7 +95,7 @@ for counter, geojson in enumerate(wd.glob("geojson/*.geojson")):
     if np.sum(np.isnan(cdata)):
         raise ValueError()
 
-    np.savez_compressed(wd / "cubes" / f"{geojson.stem}.npz", X=cdata, y=ydata)
+    np.savez_compressed(wd / "cubes" / f"{geojson.stem}.npz", X=cdata.astype("uint16"), y=ydata.astype("uint8"))
 
     continue
 
