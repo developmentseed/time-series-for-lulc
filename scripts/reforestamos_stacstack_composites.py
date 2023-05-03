@@ -40,6 +40,9 @@ for counter, geojson in enumerate(wd.glob("geojson/*.geojson")):
     if not filepath.exists():
         continue
 
+    if (wd / "cubes" / f"{geojson.stem}.npz").exists():
+        continue
+
     data = xarray.open_zarr(filepath)
 
     scl = data.imagery.sel(band="SCL").astype("uint8")
