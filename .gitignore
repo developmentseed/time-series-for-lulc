@@ -135,3 +135,7 @@ dmypy.json
 *.zarr
 *.nc
 *.npz
+*.png
+
+.vscode
+logs/
