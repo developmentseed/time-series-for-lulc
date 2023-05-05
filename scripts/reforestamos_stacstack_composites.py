@@ -88,6 +88,10 @@ for counter, geojson in enumerate(wd.glob("geojson/*.geojson")):
         .transpose("y", "x", "time", "band")
         .to_numpy()
     )
+
+    np.savez_compressed(wd / "cubesxy" / f"{geojson.stem}.npz", X=cdata.astype("uint16"), attrs=data.imagery.attrs)
+    continue
+
     cdata = cdata.reshape((-1, *cdata.shape[2:]))
 
     ydata = rasterized.ravel()
@@ -98,7 +102,7 @@ for counter, geojson in enumerate(wd.glob("geojson/*.geojson")):
     if np.sum(np.isnan(cdata)):
         raise ValueError()
 
-    np.savez_compressed(wd / "cubes" / f"{geojson.stem}.npz", X=cdata.astype("uint16"), y=ydata.astype("uint8"))
+    np.savez_compressed(wd / "cubesxy" / f"{geojson.stem}.npz", X=cdata.astype("uint16"), y=ydata.astype("uint8"))
 
     continue
 
