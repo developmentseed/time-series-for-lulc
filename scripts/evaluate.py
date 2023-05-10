@@ -20,12 +20,12 @@ def log_metrics(dm, model, device="cuda", wandb=False):
     f1 = F1Score(
         task="multiclass",
         num_classes=len(dm.train_ds.klass),
-        average="none",
+        average="weighted",
     ).to(device)
     acc = Accuracy(
         task="multiclass",
         num_classes=len(dm.train_ds.klass),
-        average="none",
+        average="weighted",
     ).to(device)
 
     val_dl = dm.val_dataloader()
@@ -63,9 +63,10 @@ def log_metrics(dm, model, device="cuda", wandb=False):
     fig = heatmap.get_figure()
     fig.savefig("heatmap.png")
 
-    scores = {k: [v1, v2] for k, v1, v2 in zip(dm.train_ds.klass, f1, acc)}
-    scores = pd.DataFrame(scores, index=["F1 Score", "Accuracy"]).reset_index()
-    print(scores)
+    # scores = {k: [v1, v2] for k, v1, v2 in zip(dm.train_ds.klass, f1, acc)}
+    # scores = pd.DataFrame(scores, index=["F1 Score", "Accuracy"]).reset_index()
+    # print(scores)
+    print(f1, acc)
 
     # Log to wandb
     if wandb:
@@ -74,10 +75,12 @@ def log_metrics(dm, model, device="cuda", wandb=False):
 
 
 if __name__ == "__main__":
-    CKPT = "logs/pixel/baseline/version_0/checkpoints/epoch:19-step:2320-loss:0.936-f1score:0.814.ckpt"
+    CKPT = "logs/pixel/baseline-05/version_0/checkpoints/epoch:18-step:2204-loss:0.939-f1score:0.813.ckpt"
 
-    dm = dm = PixelLDM(
+    dm = PixelLDM(
         cubes_dir=Path("data/cubes"),
+        num_bands=10,
+        timestep=13,
         lc_klass=S2A_LULC_CLS,
         lc_colors=S2A_LULC_COLORS,
         batch_size=8,
