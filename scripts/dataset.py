@@ -5,8 +5,10 @@ from torch.utils.data import Dataset, DataLoader
 
 
 class PixelDS(Dataset):
-    def __init__(self, cubes_dir, lc_colors, lc_klass, tfm=None):
+    def __init__(self, cubes_dir, num_bands, timestep, lc_colors, lc_klass, tfm=None):
         self.cubes = list(cubes_dir.glob("*.npz"))
+        self.timestep = timestep
+        self.num_bands = num_bands
         self.xyz = [cube.stem for cube in self.cubes]
         self.klass2colors = lc_colors
         self.klass2id = dict()
@@ -26,10 +28,13 @@ class PixelDS(Dataset):
         return len(self.xyz)
 
     def __getitem__(self, idx):
-        data = np.load(self.cubes[idx])
+        data = np.load(self.cubes[idx], allow_pickle=True)
+        # data["X"] = w, h, time, band; data["y"] = w, h
         X, y = data["X"], data["y"]
-        # data["X"] = pixel, time, band; data["y"] = pixel
-        y = self.label_tfm(data["y"])
+        X = X.reshape(-1, self.timestep, self.num_bands)
+        y = y.reshape(-1)
+
+        y = self.label_tfm(y)
         return (X, y)
 
     def label_tfm(self, y):
@@ -43,6 +48,8 @@ class PixelLDM(L.LightningDataModule):
     def __init__(
         self,
         cubes_dir,
+        num_bands,
+        timestep,
         lc_colors,
         lc_klass,
         batch_size,
@@ -52,6 +59,8 @@ class PixelLDM(L.LightningDataModule):
     ):
         super().__init__()
         self.cubes_dir = cubes_dir
+        self.num_bands = num_bands
+        self.timestep = timestep
         self.lc_colors = lc_colors
         self.lc_klass = lc_klass
         self.batch_size = batch_size
@@ -61,13 +70,28 @@ class PixelLDM(L.LightningDataModule):
 
     def setup(self, stage=None):
         self.train_ds = PixelDS(
-            self.cubes_dir / "train", self.lc_colors, self.lc_klass, self.tfm
+            self.cubes_dir / "train",
+            self.num_bands,
+            self.timestep,
+            self.lc_colors,
+            self.lc_klass,
+            self.tfm,
         )
         self.val_ds = PixelDS(
-            self.cubes_dir / "val", self.lc_colors, self.lc_klass, self.tfm
+            self.cubes_dir / "val",
+            self.num_bands,
+            self.timestep,
+            self.lc_colors,
+            self.lc_klass,
+            self.tfm,
         )
         self.test_ds = PixelDS(
-            self.cubes_dir / "test", self.lc_colors, self.lc_klass, self.tfm
+            self.cubes_dir / "test",
+            self.num_bands,
+            self.timestep,
+            self.lc_colors,
+            self.lc_klass,
+            self.tfm,
         )
 
     def timeseries_collate(self, data):
