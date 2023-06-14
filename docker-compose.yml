@@ -1,14 +1,12 @@
 version: '3.4'
 services:
   lulc:
-    image: rub21/lulc:v1
+    image: developmentseed/lulc:v1
     build:
       context: .
       dockerfile: Dockerfile
     volumes:
-      - ./:/mnt
       - $HOME/.aws:/root/.aws
-      - $PWD/:/home/jovyan/work
-      - $PWD/:/notebooks
+      - $PWD/:/home
     ports:
       - '8888:8888'
