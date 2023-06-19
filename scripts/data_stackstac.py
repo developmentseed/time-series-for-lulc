@@ -131,6 +131,7 @@ def create_zarr_files(geojson):
 
 # Run in parallel to reduce creation time
 geojsons = list(wd.glob("geojson/*.geojson"))
+geojsons.sort()
 Parallel(n_jobs=-1)(
     delayed(create_zarr_files)(geojson)
     for geojson in tqdm(geojsons, desc=f"Creatting zarr files", total=len(geojsons))
