@@ -7,6 +7,8 @@ import xarray
 from dask.distributed import Client, LocalCluster
 from numcodecs import Zstd
 from rasterio.features import rasterize
+from joblib import Parallel, delayed
+from tqdm import tqdm
 
 CLASS_DN_LOOKUP = {
     "agriculture": 1,
@@ -34,13 +36,17 @@ catalog = pystac_client.Client.open("https://earth-search.aws.element84.com/v0/"
 epsg = 6362
 
 
+<<<<<<< HEAD:scripts/data_stackstac.py
 geojsons = [gj for gj in wd.glob("geojson/*.geojson")]
 
 for geojson in geojsons[-15:]:
+=======
+def create_zarr_files(geojson):
+>>>>>>> e06f0cf (Run parallel process to create zarr files):scripts/reforestamos_stacstack.py
     filepath = wd / "stacks" / f"{geojson.stem}.zarr"
 
     if filepath.exists():
-        continue
+        return
     print("Working on file", geojson)
 
     src = gpd.read_file(geojson)
@@ -118,3 +124,14 @@ for geojson in geojsons[-15:]:
     print(f"Finished fetching {geojson}, writing to {filepath}")
     encoding = {dat: {"compressor": Zstd(level=9)} for dat in combo.data_vars}
     combo.to_zarr(filepath, mode="w", encoding=encoding)
+
+
+# for geojson in wd.glob("geojson/*.geojson"):
+#     create_zarr_files(geojson)
+
+# Run in parallel to reduce creation time
+geojsons = list(wd.glob("geojson/*.geojson"))
+Parallel(n_jobs=-1)(
+    delayed(create_zarr_files)(geojson)
+    for geojson in tqdm(geojsons, desc=f"Creatting zarr files", total=len(geojsons))
+)
