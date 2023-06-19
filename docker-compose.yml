@@ -7,6 +7,8 @@ services:
       dockerfile: Dockerfile
     volumes:
       - $HOME/.aws:/root/.aws
-      - $PWD/:/home
+      - $PWD/:/app
+    environment:
+      - AWS_PROFILE=devseed
     ports:
       - '8888:8888'
