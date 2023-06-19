@@ -30,10 +30,12 @@ CLOUDY_OR_NODATA = (0, 3, 8, 9, 10)
 
 BUFFER_SIZE_METERS = -20
 
-total = len(list(wd.glob("geojson/*.geojson")))
+geojsons = list(wd.glob("geojson/*.geojson"))
+total = len(geojsons)
+geojsons.sort()
 
 y, X = None, None
-for counter, geojson in enumerate(wd.glob("geojson/*.geojson")):
+for counter, geojson in enumerate(geojsons):
     print(f"Working on {counter + 1}/{total}")
 
     filepath = wd / "stacks" / f"{geojson.stem}.zarr"
@@ -41,8 +43,8 @@ for counter, geojson in enumerate(wd.glob("geojson/*.geojson")):
     if not filepath.exists():
         continue
 
-    if (wd / "cubesxy" / f"{geojson.stem}.npz").exists():
-        continue
+    # if (wd / "cubes" / f"{geojson.stem}.npz").exists():
+    #     continue
 
     data = xarray.open_zarr(filepath)
 
@@ -99,35 +101,35 @@ for counter, geojson in enumerate(wd.glob("geojson/*.geojson")):
     # np.savez_compressed(wd / "cubesxy" / f"{geojson.stem}.npz", X=cdata.astype("uint16"), attrs=data.imagery.attrs, y=rasterized)
     continue
 
-    cdata = cdata.reshape((-1, *cdata.shape[2:]))
+    # cdata = cdata.reshape((-1, *cdata.shape[2:]))
 
-    ydata = rasterized.ravel()
+    # ydata = rasterized.ravel()
 
-    cdata = cdata[ydata != 0]
-    ydata = ydata[ydata != 0]
+    # cdata = cdata[ydata != 0]
+    # ydata = ydata[ydata != 0]
 
-    if np.sum(np.isnan(cdata)):
-        raise ValueError()
+    # if np.sum(np.isnan(cdata)):
+    #     raise ValueError()
 
-    np.savez_compressed(wd / "cubesxy" / f"{geojson.stem}.npz", X=cdata.astype("uint16"), y=ydata.astype("uint8"))
+    # np.savez_compressed(wd / "cubesxy" / f"{geojson.stem}.npz", X=cdata.astype("uint16"), y=ydata.astype("uint8"))
 
-    continue
+    # continue
 
-    rgb = (
-        (255 * composites.sel(band=["B04", "B03", "B02"]) / 3000)
-        .clip(0, 255)
-        .astype("uint8")
-    )
+    # rgb = (
+    #     (255 * composites.sel(band=["B04", "B03", "B02"]) / 3000)
+    #     .clip(0, 255)
+    #     .astype("uint8")
+    # )
 
-    fig = plt.figure(figsize=(45, 50))
-    imgx = 3
-    imgy = 5
-    for i in range(rgb.shape[0]):
-        ax = fig.add_subplot(imgy, imgx, i + 1)
-        xarray.plot.imshow(rgb[i], ax=ax)
+    # fig = plt.figure(figsize=(45, 50))
+    # imgx = 3
+    # imgy = 5
+    # for i in range(rgb.shape[0]):
+    #     ax = fig.add_subplot(imgy, imgx, i + 1)
+    #     xarray.plot.imshow(rgb[i], ax=ax)
 
-    ax = fig.add_subplot(imgy, imgx, i + 2)
-    data["training"] = (("y", "x"), rasterized)
-    xarray.plot.imshow(data.training, ax=ax)
+    # ax = fig.add_subplot(imgy, imgx, i + 2)
+    # data["training"] = (("y", "x"), rasterized)
+    # xarray.plot.imshow(data.training, ax=ax)
 
-    plt.show()
+    # plt.show()
