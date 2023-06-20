@@ -9,6 +9,7 @@ from numcodecs import Zstd
 from rasterio.features import rasterize
 from joblib import Parallel, delayed
 from tqdm import tqdm
+import dask.diagnostics
 
 CLASS_DN_LOOKUP = {
     "agriculture": 1,
@@ -93,7 +94,8 @@ def create_zarr_files(geojson):
     )
 
     # Fetch data.
-    data = data.compute()
+    with dask.diagnostics.ProgressBar():
+        data = data.compute()
 
     # Ensure data is writable to zarr
     data.attrs["transform"] = tuple(data.transform)
@@ -134,5 +136,5 @@ geojsons = list(wd.glob("geojson/*.geojson"))
 geojsons.sort()
 Parallel(n_jobs=-1)(
     delayed(create_zarr_files)(geojson)
-    for geojson in tqdm(geojsons, desc=f"Creatting zarr files", total=len(geojsons))
+    for geojson in tqdm(geojsons, desc=f"Creating zarr files", total=len(geojsons))
 )
