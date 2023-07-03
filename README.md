@@ -2,7 +2,7 @@
 
 LULC mapping is difficult because of the complexity of the land cover types and the variability of the spectral signatures. This project aims to use time series data and spectral bands to map land cover types. 
 
-In our recent work with Reforestamos, we faced a few challenges while trying to map different forest types in the corridors of Mexico; such as:
+In our recent work with a partner, we faced a few challenges while trying to map different forest types, such as:
 
 1. Data
 - Generating training data for LULC mapping is expensive and time consuming
@@ -19,7 +19,7 @@ In this project, we aim to solve these problems by using time series data and sp
 Because this is a simpler model, it takes less time to train and we can experiment faster.
 
 As a part of labs POC:
-- We will use already labelled data for Reforestamos using inward buffers to make sure the pixels are perfect representations of the class.
+- We will use already labelled data for our partner using inward buffers to make sure the pixels are perfect representations of the class.
 - We will use Sentinel Mosaics on a monthly basis to create the data cubes - time x spectral-bands x width x height
 - Train 1D convolution model on the data cubes
 - Evaluate the results & compare with the Unet/DeepLab model we have deployed in PEARL
@@ -29,10 +29,10 @@ As a part of labs POC:
 
 ### Getting the training dataset
 
-We have data for training reforestamos models hosted on Development Seed's S3 bucket.
+We have data for training these models hosted on Development Seed's S3 bucket.
 
 ```
-aws s3 ls s3://ds-data-projects/reforestamos/reforestamos_sentinel/
+aws s3 ls s3://ds-data-projects/data/
                            PRE geojson/
                            PRE images_dt_12B/
                            PRE images_dt_4B/
