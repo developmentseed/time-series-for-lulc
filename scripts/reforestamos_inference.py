@@ -1,6 +1,6 @@
 from pathlib import Path
 
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import rasterio
@@ -35,9 +35,11 @@ colors_list = [[band / 255 for band in color] for color in colors_list]
 lulc_cmap = colors.ListedColormap(colors_list)
 
 
-wd = Path("/home/tam/Desktop/aoi/tuxtla/old")
+wd = Path("/home/tam/Desktop/aoi/tuxtla")
 
 for xyz in wd.glob("cubesxy/*.npz"):
+    print("Working on", xyz)
+
     sample = np.load(xyz, allow_pickle=True)
 
     X = sample["X"]
@@ -53,7 +55,6 @@ for xyz in wd.glob("cubesxy/*.npz"):
     result = []
     for dat in np.split(X, h):
         dat = torch.from_numpy(dat.astype(np.float32)).transpose(1, 2).to("cuda")
-        print(dat.shape)
         logits = model(dat)
         dat.detach()
         y_pred = torch.argmax(torch.softmax(logits, dim=1), dim=1)
@@ -88,7 +89,8 @@ for xyz in wd.glob("cubesxy/*.npz"):
     ) as dst:
         dst.write(y_pred, 1)
         dst.write_colormap(1, dm.train_ds.id2colors)
-    break
+
+print("Done inferencing")
 
 to_merge = [tif for tif in wd.glob("inferences/*.tif")]
 merge(to_merge, dst_path=wd / "lulc_merged.tif")

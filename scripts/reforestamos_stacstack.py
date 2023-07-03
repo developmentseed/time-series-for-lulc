@@ -21,17 +21,22 @@ CLASS_DN_LOOKUP = {
     "without_apparent_vegetation": 10,
 }
 
-wd = Path("./data")
+# wd = Path("./data")
+wd = Path("/home/tam/Desktop/aoi/tuxtla")
 
 # cluster = LocalCluster(
-#     n_workers=1, processes=True, threads_per_worker=1
+#     n_workers=4, processes=True, threads_per_worker=1
 # )  # Launches a scheduler and workers locally
 # client = Client(cluster)
+
 catalog = pystac_client.Client.open("https://earth-search.aws.element84.com/v0/")
 
 epsg = 6362
 
-for geojson in wd.glob("geojson/*.geojson"):
+
+geojsons = [gj for gj in wd.glob("geojson/*.geojson")]
+
+for geojson in geojsons[-15:]:
     filepath = wd / "stacks" / f"{geojson.stem}.zarr"
 
     if filepath.exists():
@@ -48,7 +53,8 @@ for geojson in wd.glob("geojson/*.geojson"):
     search = catalog.search(
         collections=["sentinel-s2-l2a-cogs"],
         bbox=src.total_bounds,
-        datetime="2021-12-01/2022-03-30",
+        datetime="2021-11-01/2022-04-30",
+        # datetime="2021-12-01/2022-03-30",
     )
     items = search.get_all_items()
     print(f"Found {len(items)} items")
@@ -87,24 +93,24 @@ for geojson in wd.glob("geojson/*.geojson"):
     data.attrs["transform"] = tuple(data.transform)
     del data.attrs["spec"]
 
-    # Rasterize training data
-    rasterized = rasterize(
-        [
-            (dat.geometry, CLASS_DN_LOOKUP[dat["class"]])
-            for fid, dat in src_mx.iterrows()
-        ],
-        out_shape=data.shape[2:],
-        transform=data.transform,
-        all_touched=True,
-        fill=0,
-        dtype="uint8",
-    )
+    # # Rasterize training data
+    # rasterized = rasterize(
+    #     [
+    #         (dat.geometry, CLASS_DN_LOOKUP[dat["class"]])
+    #         for fid, dat in src_mx.iterrows()
+    #     ],
+    #     out_shape=data.shape[2:],
+    #     transform=data.transform,
+    #     all_touched=True,
+    #     fill=0,
+    #     dtype="uint8",
+    # )
 
     # Combine y and X array for training later
     combo = xarray.Dataset(
         {
             "imagery": data,
-            "training": (["y", "x"], rasterized),
+            # "training": (["y", "x"], rasterized),
         }
     )
 

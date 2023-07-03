@@ -10,6 +10,7 @@ from wikidata import S2A_LULC_CLS
 CLASS_DN_LOOKUP = {val: key for key, val in S2A_LULC_CLS.items()}
 
 wd = Path("./data")
+wd = Path("/home/tam/Desktop/aoi/tuxtla")
 
 epsg = 6362
 
@@ -40,7 +41,7 @@ for counter, geojson in enumerate(wd.glob("geojson/*.geojson")):
     if not filepath.exists():
         continue
 
-    if (wd / "cubes" / f"{geojson.stem}.npz").exists():
+    if (wd / "cubesxy" / f"{geojson.stem}.npz").exists():
         continue
 
     data = xarray.open_zarr(filepath)
@@ -68,28 +69,34 @@ for counter, geojson in enumerate(wd.glob("geojson/*.geojson")):
         composites_using_cloud_mask,
     )
 
-    # Rasterize the geometry with negative buffer
-    src = gpd.read_file(geojson).to_crs(f"EPSG:{epsg}")
-    rasterized = rasterize(
-        [
-            (dat.geometry.buffer(BUFFER_SIZE_METERS), CLASS_DN_LOOKUP[dat["class"]])
-            for fid, dat in src.iterrows()
-            if dat.geometry
-        ],
-        out_shape=composites.shape[2:],
-        transform=cleaned_data.transform,
-        all_touched=True,
-        fill=0,
-        dtype="uint8",
-    )
+    del composites_using_all_pixels
+    del composites_using_cloud_mask
+
+    # # Rasterize the geometry with negative buffer
+    # src = gpd.read_file(geojson).to_crs(f"EPSG:{epsg}")
+    # rasterized = rasterize(
+    #     [
+    #         # (dat.geometry.buffer(BUFFER_SIZE_METERS), CLASS_DN_LOOKUP[dat["class"]])
+    #         (dat.geometry, CLASS_DN_LOOKUP[dat["class"]])
+    #         for fid, dat in src.iterrows()
+    #         if dat.geometry
+    #     ],
+    #     out_shape=composites.shape[2:],
+    #     transform=cleaned_data.transform,
+    #     all_touched=True,
+    #     fill=0,
+    #     dtype="uint8",
+    # )
 
     cdata = (
         composites.drop_sel({"band": "SCL"})
         .transpose("y", "x", "time", "band")
         .to_numpy()
     )
+    del composites
 
     np.savez_compressed(wd / "cubesxy" / f"{geojson.stem}.npz", X=cdata.astype("uint16"), attrs=data.imagery.attrs)
+    # np.savez_compressed(wd / "cubesxy" / f"{geojson.stem}.npz", X=cdata.astype("uint16"), attrs=data.imagery.attrs, y=rasterized)
     continue
 
     cdata = cdata.reshape((-1, *cdata.shape[2:]))
