@@ -68,3 +68,15 @@ I have added my nbs/ to the repository - this is where I was trying to pull data
 
 
 
+## Docker development environment
+
+```sh
+# Build the container
+docker-compose build
+
+# Start Jupyter lab
+docker-compose up
+
+# Access shell env
+docker-compose run lulc bash
+```

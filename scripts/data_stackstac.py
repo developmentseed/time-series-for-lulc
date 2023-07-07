@@ -7,6 +7,9 @@ import xarray
 from dask.distributed import Client, LocalCluster
 from numcodecs import Zstd
 from rasterio.features import rasterize
+from joblib import Parallel, delayed
+from tqdm import tqdm
+import dask.diagnostics
 
 CLASS_DN_LOOKUP = {
     "agriculture": 1,
@@ -21,8 +24,8 @@ CLASS_DN_LOOKUP = {
     "without_apparent_vegetation": 10,
 }
 
-# wd = Path("./data")
-wd = Path("/home/tam/Desktop/aoi/tuxtla")
+wd = Path("./data")
+# wd = Path("/home/tam/Desktop/aoi/tuxtla")
 
 # cluster = LocalCluster(
 #     n_workers=4, processes=True, threads_per_worker=1
@@ -34,13 +37,11 @@ catalog = pystac_client.Client.open("https://earth-search.aws.element84.com/v0/"
 epsg = 6362
 
 
-geojsons = [gj for gj in wd.glob("geojson/*.geojson")]
-
-for geojson in geojsons[-15:]:
+def create_zarr_files(geojson):
     filepath = wd / "stacks" / f"{geojson.stem}.zarr"
 
     if filepath.exists():
-        continue
+        return
     print("Working on file", geojson)
 
     src = gpd.read_file(geojson)
@@ -87,7 +88,8 @@ for geojson in geojsons[-15:]:
     )
 
     # Fetch data.
-    data = data.compute()
+    with dask.diagnostics.ProgressBar():
+        data = data.compute()
 
     # Ensure data is writable to zarr
     data.attrs["transform"] = tuple(data.transform)
@@ -118,3 +120,15 @@ for geojson in geojsons[-15:]:
     print(f"Finished fetching {geojson}, writing to {filepath}")
     encoding = {dat: {"compressor": Zstd(level=9)} for dat in combo.data_vars}
     combo.to_zarr(filepath, mode="w", encoding=encoding)
+
+
+# for geojson in wd.glob("geojson/*.geojson"):
+#     create_zarr_files(geojson)
+
+# Run in parallel to reduce creation time
+geojsons = list(wd.glob("geojson/*.geojson"))
+geojsons.sort()
+Parallel(n_jobs=-1)(
+    delayed(create_zarr_files)(geojson)
+    for geojson in tqdm(geojsons, desc=f"Creating zarr files", total=len(geojsons))
+)

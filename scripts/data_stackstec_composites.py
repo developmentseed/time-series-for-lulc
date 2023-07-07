@@ -1,4 +1,3 @@
-# import matplotlib.pyplot as plt
 from pathlib import Path
 
 import geopandas as gpd
@@ -6,11 +5,13 @@ import numpy as np
 import xarray
 from rasterio.features import rasterize
 from wikidata import S2A_LULC_CLS
+from joblib import Parallel, delayed
+from tqdm import tqdm
 
 CLASS_DN_LOOKUP = {val: key for key, val in S2A_LULC_CLS.items()}
 
 wd = Path("./data")
-wd = Path("/home/tam/Desktop/aoi/tuxtla")
+# wd = Path("/home/tam/Desktop/aoi/tuxtla")
 
 epsg = 6362
 
@@ -30,21 +31,18 @@ CLOUDY_OR_NODATA = (0, 3, 8, 9, 10)
 
 BUFFER_SIZE_METERS = -20
 
-total = len(list(wd.glob("geojson/*.geojson")))
+def create_npz_files(geojson):
+    # print(f"Working on {counter + 1}/{total}")
 
-y, X = None, None
-for counter, geojson in enumerate(wd.glob("geojson/*.geojson")):
-    print(f"Working on {counter + 1}/{total}")
+    zarr_filepath = wd / "stacks" / f"{geojson.stem}.zarr"
 
-    filepath = wd / "stacks" / f"{geojson.stem}.zarr"
+    if not zarr_filepath.exists():
+        return
 
-    if not filepath.exists():
-        continue
+    # if (wd / "cubes" / f"{geojson.stem}.npz").exists():
+    #     continue
 
-    if (wd / "cubesxy" / f"{geojson.stem}.npz").exists():
-        continue
-
-    data = xarray.open_zarr(filepath)
+    data = xarray.open_zarr(zarr_filepath)
 
     scl = data.imagery.sel(band="SCL").astype("uint8")
 
@@ -96,38 +94,13 @@ for counter, geojson in enumerate(wd.glob("geojson/*.geojson")):
     del composites
 
     np.savez_compressed(wd / "cubesxy" / f"{geojson.stem}.npz", X=cdata.astype("uint16"), attrs=data.imagery.attrs)
-    # np.savez_compressed(wd / "cubesxy" / f"{geojson.stem}.npz", X=cdata.astype("uint16"), attrs=data.imagery.attrs, y=rasterized)
-    continue
+    return 
 
-    cdata = cdata.reshape((-1, *cdata.shape[2:]))
+# Run in parallel to reduce creation time
+geojsons = list(wd.glob("geojson/*.geojson"))
+geojsons.sort()
 
-    ydata = rasterized.ravel()
-
-    cdata = cdata[ydata != 0]
-    ydata = ydata[ydata != 0]
-
-    if np.sum(np.isnan(cdata)):
-        raise ValueError()
-
-    np.savez_compressed(wd / "cubesxy" / f"{geojson.stem}.npz", X=cdata.astype("uint16"), y=ydata.astype("uint8"))
-
-    continue
-
-    rgb = (
-        (255 * composites.sel(band=["B04", "B03", "B02"]) / 3000)
-        .clip(0, 255)
-        .astype("uint8")
-    )
-
-    fig = plt.figure(figsize=(45, 50))
-    imgx = 3
-    imgy = 5
-    for i in range(rgb.shape[0]):
-        ax = fig.add_subplot(imgy, imgx, i + 1)
-        xarray.plot.imshow(rgb[i], ax=ax)
-
-    ax = fig.add_subplot(imgy, imgx, i + 2)
-    data["training"] = (("y", "x"), rasterized)
-    xarray.plot.imshow(data.training, ax=ax)
-
-    plt.show()
+Parallel(n_jobs=-1)(
+    delayed(create_npz_files)(geojson)
+    for geojson in tqdm(geojsons, desc=f"Creating npz files", total=len(geojsons))
+)
