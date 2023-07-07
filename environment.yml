@@ -223,3 +223,4 @@ dependencies:
       - zarr==2.14.2
       - zict==3.0.0
       - zipp==3.15.0
+      - geopandas
