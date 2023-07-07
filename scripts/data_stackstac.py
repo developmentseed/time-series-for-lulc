@@ -24,8 +24,8 @@ CLASS_DN_LOOKUP = {
     "without_apparent_vegetation": 10,
 }
 
-# wd = Path("./data")
-wd = Path("/home/tam/Desktop/aoi/tuxtla")
+wd = Path("./data")
+# wd = Path("/home/tam/Desktop/aoi/tuxtla")
 
 # cluster = LocalCluster(
 #     n_workers=4, processes=True, threads_per_worker=1
@@ -37,13 +37,7 @@ catalog = pystac_client.Client.open("https://earth-search.aws.element84.com/v0/"
 epsg = 6362
 
 
-<<<<<<< HEAD:scripts/data_stackstac.py
-geojsons = [gj for gj in wd.glob("geojson/*.geojson")]
-
-for geojson in geojsons[-15:]:
-=======
 def create_zarr_files(geojson):
->>>>>>> e06f0cf (Run parallel process to create zarr files):scripts/reforestamos_stacstack.py
     filepath = wd / "stacks" / f"{geojson.stem}.zarr"
 
     if filepath.exists():

@@ -11,7 +11,7 @@ from tqdm import tqdm
 CLASS_DN_LOOKUP = {val: key for key, val in S2A_LULC_CLS.items()}
 
 wd = Path("./data")
-wd = Path("/home/tam/Desktop/aoi/tuxtla")
+# wd = Path("/home/tam/Desktop/aoi/tuxtla")
 
 epsg = 6362
 
@@ -99,6 +99,7 @@ def create_npz_files(geojson):
 # Run in parallel to reduce creation time
 geojsons = list(wd.glob("geojson/*.geojson"))
 geojsons.sort()
+
 Parallel(n_jobs=-1)(
     delayed(create_npz_files)(geojson)
     for geojson in tqdm(geojsons, desc=f"Creating npz files", total=len(geojsons))
