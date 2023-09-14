@@ -3,12 +3,12 @@ from pathlib import Path
 import pandas as pd
 import seaborn as sns
 import torch
-import wandb
+# import wandb
 from torchmetrics.classification import ConfusionMatrix, F1Score, Accuracy
 from model import PixelLM
 from dataset import PixelLDM
 from wikidata import S2A_LULC_CLS, S2A_LULC_COLORS
-
+wandb = None
 
 @torch.no_grad()
 def log_metrics(dm, model, device="cuda", wandb=False):
@@ -27,7 +27,7 @@ def log_metrics(dm, model, device="cuda", wandb=False):
         num_classes=len(dm.train_ds.klass),
         average="weighted",
     ).to(device)
-
+    
     val_dl = dm.val_dataloader()
     for idx, batch in enumerate(val_dl):
         batch["X"] = batch["X"].to(device=device)
@@ -75,10 +75,12 @@ def log_metrics(dm, model, device="cuda", wandb=False):
 
 
 if __name__ == "__main__":
-    CKPT = "logs/pixel/baseline-05/version_0/checkpoints/epoch:18-step:2204-loss:0.939-f1score:0.813.ckpt"
+    CKPT = "/home/tam/Documents/devseed/labs-lulc/checkpoints/epoch_18-step_2204-loss_0.939-f1score_0.813.ckpt"
+    # CKPT = "logs/pixel/baseline-05/version_0/checkpoints/epoch:18-step:2204-loss:0.939-f1score:0.813.ckpt"
 
     dm = PixelLDM(
-        cubes_dir=Path("data/cubes"),
+        cubes_dir=Path("/home/tam/Documents/devseed/labs-lulc/cubesxy"),
+        # cubes_dir=Path("data/cubes"),
         num_bands=10,
         timestep=13,
         lc_klass=S2A_LULC_CLS,
